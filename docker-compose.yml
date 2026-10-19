@@ -1,0 +1,48 @@
+# Local development stack. Kubernetes manifests live in k8s/.
+# Settings come from the .env file next to this file (copy .env.example).
+services:
+  workout-db:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-fitness}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?set MONGO_PASSWORD in .env}
+    volumes:
+      - workout-data:/data/db
+
+  workout-service:
+    build: ./workout-service
+    image: ${DOCKERHUB_USER:-youruser}/pft-workout:1.0
+    environment:
+      MONGO_URL: mongodb://${MONGO_USER:-fitness}:${MONGO_PASSWORD}@workout-db:27017/?authSource=admin
+      DB_NAME: fitness
+    depends_on:
+      - workout-db
+    ports:
+      - "8001:8000"   # direct access for testing via /docs; not present in Kubernetes
+
+  recommendation-service:
+    build: ./recommendation-service
+    image: ${DOCKERHUB_USER:-youruser}/pft-recommendation:1.0
+    environment:
+      WORKOUT_URL: http://workout-service:8000
+      REDUCE_LOAD_MINUTES: "300"
+      SIMULATE_CPU_MS: ${SIMULATE_CPU_MS:-0}
+    depends_on:
+      - workout-service
+    ports:
+      - "8002:8000"   # direct access for testing via /docs; not present in Kubernetes
+
+  web-gateway:
+    build: ./web-gateway
+    image: ${DOCKERHUB_USER:-youruser}/pft-gateway:1.0
+    environment:
+      WORKOUT_URL: http://workout-service:8000
+      RECOMMENDATION_URL: http://recommendation-service:8000
+    depends_on:
+      - workout-service
+      - recommendation-service
+    ports:
+      - "8080:8000"
+
+volumes:
+  workout-data:
