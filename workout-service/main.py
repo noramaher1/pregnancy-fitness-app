@@ -10,7 +10,10 @@ from pydantic import BaseModel, Field
 from pymongo import DESCENDING, MongoClient
 from pymongo.errors import PyMongoError
 
-MONGO_URL = os.environ.get("MONGO_URL", "mongodb://workout-db:27017")
+MONGO_URL = os.environ.get(
+    "MONGO_URL",
+    "mongodb://fitness:fitness123@localhost:27017/?authSource=admin"
+)
 DB_NAME = os.environ.get("DB_NAME", "fitness")
 
 client = MongoClient(MONGO_URL, serverSelectionTimeoutMS=3000)

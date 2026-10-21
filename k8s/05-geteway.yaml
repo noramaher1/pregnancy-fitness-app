@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-gateway
+  namespace: pft
+  labels:
+    app: web-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web-gateway
+  template:
+    metadata:
+      labels:
+        app: web-gateway
+    spec:
+      containers:
+        - name: web-gateway
+          image: noramaher/pft-gateway:1.0      # replace noramaher with your Docker Hub name
+          ports:
+            - containerPort: 8000
+          env:
+            - name: WORKOUT_URL
+              value: http://workout-service:8000
+            - name: RECOMMENDATION_URL
+              value: http://recommendation-service:8000
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-gateway
+  namespace: pft
+spec:
+  type: LoadBalancer        # the only Service reachable from outside the cluster
+  selector:
+    app: web-gateway
+  ports:
+    - port: 8080
+      targetPort: 8000

@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workout-service
+  namespace: pft
+  labels:
+    app: workout-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: workout-service
+  template:
+    metadata:
+      labels:
+        app: workout-service
+    spec:
+      containers:
+        - name: workout-service
+          image: noramaher/pft-workout:1.0     # replace noramaher with your Docker Hub name
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MONGO_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-credentials
+                  key: MONGO_USER
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-credentials
+                  key: MONGO_PASSWORD
+            - name: MONGO_URL            # $(NAME) is filled in from the variables above
+              value: "mongodb://$(MONGO_USER):$(MONGO_PASSWORD)@workout-db:27017/?authSource=admin"
+            - name: DB_NAME
+              value: fitness
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workout-service
+  namespace: pft
+spec:
+  selector:
+    app: workout-service
+  ports:
+    - port: 8000
+      targetPort: 8000

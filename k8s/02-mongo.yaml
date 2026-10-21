@@ -1,0 +1,70 @@
+# MongoDB: one pod, data on a PersistentVolumeClaim that survives pod restarts.
+apiVersion: v1
+kind: Service
+metadata:
+  name: workout-db
+  namespace: pft
+  labels:
+    app: workout-db
+spec:
+  clusterIP: None          # headless: the name resolves straight to the pod
+  selector:
+    app: workout-db
+  ports:
+    - name: mongo
+      port: 27017
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: workout-db
+  namespace: pft
+spec:
+  serviceName: workout-db
+  replicas: 1              # the assignment does not require a scalable database
+  selector:
+    matchLabels:
+      app: workout-db
+  template:
+    metadata:
+      labels:
+        app: workout-db
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7
+          ports:
+            - containerPort: 27017
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-credentials
+                  key: MONGO_USER
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-credentials
+                  key: MONGO_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+          readinessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
