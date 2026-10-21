@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 WORKOUT_URL = os.environ.get("WORKOUT_URL", "http://workout-service:8000")
 RECOMMENDATION_URL = os.environ.get("RECOMMENDATION_URL", "http://recommendation-service:8000")
-INDEX = Path(__file__).parent / "static" / "index.html"
+STATIC = Path(__file__).parent / "static"
 
 app = FastAPI(title="Web gateway")
 
@@ -35,8 +35,13 @@ def call(method: str, base: str, path: str, **kwargs):
 
 
 @app.get("/")
-def index():
-    return FileResponse(INDEX)
+def landing():
+    return FileResponse(STATIC / "index.html")
+
+
+@app.get("/app")
+def tracker():
+    return FileResponse(STATIC / "app.html")
 
 
 @app.get("/health")

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pregnancy fitness tracker</title>
+<style>
+  :root { --pink-50:#fff7f8; --pink-100:#fde7ea; --pink-200:#fad2da; --pink-300:#f1a1b1; --rose:#d1344f; --coral:#ee5f6e; --ink:#2f3a4f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"Segoe UI", system-ui, -apple-system, Roboto, sans-serif; color:var(--ink); background:var(--pink-50); line-height:1.5; }
+  .top { background:var(--pink-100); padding:14px 24px; display:flex; align-items:center; gap:20px; }
+  .top a { color:var(--rose); text-decoration:none; font-weight:600; }
+  .top span { color:var(--rose); font-weight:700; font-size:1.1rem; }
+  main { max-width:760px; margin:0 auto; padding:24px 16px 48px; }
+  .disclaimer { font-size:.85rem; color:#6b7280; margin:0 0 16px; }
+  .card { background:#fff; border:1px solid var(--pink-200); border-radius:16px; padding:18px 20px; margin-bottom:18px; }
+  h2 { font-size:1.1rem; color:var(--rose); margin:0 0 10px; font-weight:700; }
+  label { display:inline-block; margin:4px 16px 4px 0; font-size:.9rem; color:#4b5563; }
+  input, select { font:inherit; padding:8px 12px; border:1px solid var(--pink-200); border-radius:10px; background:#fff; color:var(--ink); margin-left:6px; }
+  input:focus, select:focus { outline:2px solid var(--pink-300); border-color:var(--pink-300); }
+  input[type=number] { width:90px; }
+  button { font:inherit; font-weight:600; background:var(--coral); color:#fff; border:0; border-radius:999px; padding:9px 26px; cursor:pointer; }
+  button:hover { background:#d94a5a; }
+  button.small { padding:4px 14px; font-size:.85rem; background:var(--pink-200); color:var(--rose); }
+  button.small:hover { background:var(--pink-300); color:#fff; }
+  button.link { background:none; color:#6b7280; text-decoration:underline; font-weight:400; padding:4px 0; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--pink-100); font-size:.95rem; }
+  th { color:var(--rose); font-weight:600; }
+  .err { color:#b42318; min-height:1.4em; margin:0 0 10px; }
+  .warn { background:var(--pink-100); color:#8a1f35; padding:8px 12px; border-radius:10px; }
+  #rec strong { color:var(--rose); }
+  #rec ul { margin:4px 0 10px; padding-left:20px; }
+</style>
+</head>
+<body>
+<header class="top"><a href="/">&larr; Back</a><span>Pregnancy fitness tracker</span></header>
+<main>
+<p class="disclaimer">General information only. This is not medical advice. Ask your midwife or doctor before changing your exercise routine.</p>
+
+<section class="card">
+  <h2>Who and when</h2>
+  <label>Name <input id="user" value="anna" maxlength="50"></label>
+  <label>Pregnancy week <input id="week" type="number" min="1" max="42" value="20"></label>
+  <button id="load">Load</button>
+</section>
+
+<p id="error" class="err"></p>
+
+<section class="card">
+  <h2>Exercises for your week</h2>
+  <div id="rec">Press Load.</div>
+</section>
+
+<section class="card">
+  <h2>Log a workout</h2>
+  <label>Type
+    <select id="type">
+      <option>Walking</option><option>Swimming</option><option>Prenatal yoga</option>
+      <option>Strength training</option><option>Stretching</option><option>Pelvic floor</option>
+    </select>
+  </label>
+  <label>Minutes <input id="minutes" type="number" min="1" max="600" value="30"></label>
+  <button id="add">Add</button>
+</section>
+
+<section class="card">
+  <h2>Logged workouts</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Type</th><th>Minutes</th><th>Week</th><th></th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</section>
+
+<button id="erase" class="link">Delete all my data</button>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const msg = typeof data.detail === "string" ? data.detail : "Request failed (" + r.status + ")";
+    throw new Error(msg);
+  }
+  return data;
+}
+
+function el(tag, text, cls) {
+  const e = document.createElement(tag);
+  if (text !== undefined) e.textContent = text;
+  if (cls) e.className = cls;
+  return e;
+}
+
+function renderRec(rec) {
+  const box = $("rec");
+  box.replaceChildren();
+  if (!rec) { box.textContent = "Recommendations are unavailable right now."; return; }
+  box.append(el("p", "Trimester " + rec.trimester + " (week " + rec.week + ")"));
+  box.append(el("strong", "Suitable"));
+  const ul = el("ul");
+  rec.exercises.forEach(x => ul.append(el("li", x)));
+  box.append(ul);
+  box.append(el("strong", "Avoid"));
+  const ul2 = el("ul");
+  rec.avoid.forEach(x => ul2.append(el("li", x)));
+  box.append(ul2);
+  if (rec.weekly_minutes !== null) box.append(el("p", "Minutes in the last 7 days: " + rec.weekly_minutes));
+  rec.notes.forEach(n => box.append(el("p", n, "warn")));
+}
+
+function renderRows(items) {
+  const body = $("rows");
+  body.replaceChildren();
+  items.forEach(w => {
+    const tr = el("tr");
+    tr.append(el("td", new Date(w.created).toLocaleDateString()));
+    tr.append(el("td", w.type));
+    tr.append(el("td", String(w.minutes)));
+    tr.append(el("td", String(w.week)));
+    const td = el("td");
+    const b = el("button", "Delete", "small");
+    b.onclick = () => run(async () => {
+      await api("/api/workouts/" + encodeURIComponent(w.id) + "?user=" + encodeURIComponent($("user").value), { method: "DELETE" });
+      await refresh();
+    });
+    td.append(b);
+    tr.append(td);
+    body.append(tr);
+  });
+}
+
+async function refresh() {
+  const q = "user=" + encodeURIComponent($("user").value) + "&week=" + encodeURIComponent($("week").value);
+  const data = await api("/api/overview?" + q);
+  renderRec(data.recommendation);
+  renderRows(data.workouts);
+}
+
+async function run(fn) {
+  $("error").textContent = "";
+  try { await fn(); } catch (e) { $("error").textContent = e.message; }
+}
+
+$("load").onclick = () => run(refresh);
+$("add").onclick = () => run(async () => {
+  await api("/api/workouts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user: $("user").value, type: $("type").value,
+      minutes: Number($("minutes").value), week: Number($("week").value),
+    }),
+  });
+  await refresh();
+});
+$("erase").onclick = () => run(async () => {
+  if (!confirm("Delete every workout stored for this name?")) return;
+  await api("/api/users/" + encodeURIComponent($("user").value), { method: "DELETE" });
+  await refresh();
+});
+</script>
+</body>
+</html>

@@ -34,7 +34,7 @@ services:
 
   web-gateway:
     build: ./web-gateway
-    image: ${DOCKERHUB_USER:-youruser}/pft-gateway:1.0
+    image: ${DOCKERHUB_USER:-youruser}/pft-gateway:1.2
     environment:
       WORKOUT_URL: http://workout-service:8000
       RECOMMENDATION_URL: http://recommendation-service:8000

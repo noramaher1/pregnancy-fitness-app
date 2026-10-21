@@ -5,140 +5,72 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pregnancy fitness tracker</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
-  fieldset { margin-bottom: 1.5rem; border: 1px solid #ccc; border-radius: 6px; }
-  label { margin-right: 1rem; }
-  input, select, button { font: inherit; padding: 0.3rem 0.5rem; margin: 0.2rem 0; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { text-align: left; padding: 0.3rem 0.5rem; border-bottom: 1px solid #ddd; }
-  .warn { background: #fff3cd; color: #4d3b00; padding: 0.5rem 0.75rem; border-radius: 6px; }
-  .err { color: #a00; }
-  .disclaimer { font-size: 0.85rem; color: #555; }
+  :root { --pink-50:#fff7f8; --pink-100:#fde7ea; --pink-200:#fad2da; --pink-300:#f1a1b1; --rose:#d1344f; --coral:#ee5f6e; --ink:#2f3a4f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"Segoe UI", system-ui, -apple-system, Roboto, sans-serif; color:var(--ink); background:var(--pink-50); }
+  .hero { min-height:100vh; display:grid; grid-template-columns:1fr 1fr; align-items:center; max-width:1100px; margin:0 auto; padding:0 24px; gap:24px; }
+  .copy { padding:32px 0; }
+  .kicker { font-size:2.2rem; font-weight:500; color:var(--pink-300); margin:0; }
+  h1 { font-size:3.2rem; line-height:1.1; font-weight:700; color:var(--rose); margin:0 0 20px; }
+  .caption { font-size:1.15rem; line-height:1.6; max-width:26ch; margin:0 0 28px; }
+  .next { display:inline-block; background:var(--coral); color:#fff; text-decoration:none; font-weight:600; letter-spacing:.06em; text-transform:uppercase; padding:14px 48px; border-radius:999px; font-size:.95rem; }
+  .next:hover, .next:focus { background:#d94a5a; }
+  .dots { display:flex; gap:10px; margin:28px 0 0; }
+  .dots a { width:12px; height:12px; border-radius:50%; background:var(--pink-200); display:block; }
+  .dots a.on { background:var(--coral); }
+  .note { font-size:.8rem; color:#6b7280; margin-top:28px; max-width:40ch; }
+  .art { display:flex; align-items:center; justify-content:center; }
+  .art svg { width:100%; max-width:520px; height:auto; }
+  @media (max-width:800px) {
+    .hero { grid-template-columns:1fr; padding-top:16px; }
+    .art { order:-1; }
+    h1 { font-size:2.5rem; }
+    .kicker { font-size:1.8rem; }
+  }
 </style>
 </head>
 <body>
-<h1>Pregnancy fitness App</h1>
-<p class="disclaimer">General information only. This is not medical advice. Ask your midwife or doctor before changing your exercise routine.</p>
-
-<fieldset>
-  <legend>Who and when</legend>
-  <label>Name <input id="user" value="anna" maxlength="50"></label>
-  <label>Pregnancy week <input id="week" type="number" min="1" max="42" value="20"></label>
-  <button id="load">Load</button>
-</fieldset>
-
-<fieldset>
-  <legend>Log a workout</legend>
-  <label>Type
-    <select id="type">
-      <option>Walking</option><option>Swimming</option><option>Prenatal yoga</option>
-      <option>Strength training</option><option>Stretching</option><option>Pelvic floor</option>
-    </select>
-  </label>
-  <label>Minutes <input id="minutes" type="number" min="1" max="600" value="30"></label>
-  <button id="add">Add</button>
-</fieldset>
-
-<p id="error" class="err"></p>
-
-<h2>Recommendations</h2>
-<div id="rec">Press Load.</div>
-
-<h2>Logged workouts</h2>
-<table>
-  <thead><tr><th>Date</th><th>Type</th><th>Minutes</th><th>Week</th><th></th></tr></thead>
-  <tbody id="rows"></tbody>
-</table>
-
-<p><button id="erase">Delete all my data</button></p>
-
-<script>
-const $ = id => document.getElementById(id);
-
-async function api(path, opts) {
-  const r = await fetch(path, opts);
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    const msg = typeof data.detail === "string" ? data.detail : "Request failed (" + r.status + ")";
-    throw new Error(msg);
-  }
-  return data;
-}
-
-function el(tag, text, cls) {
-  const e = document.createElement(tag);
-  if (text !== undefined) e.textContent = text;
-  if (cls) e.className = cls;
-  return e;
-}
-
-function renderRec(rec) {
-  const box = $("rec");
-  box.replaceChildren();
-  if (!rec) { box.textContent = "Recommendations are unavailable right now."; return; }
-  box.append(el("p", "Trimester " + rec.trimester + " (week " + rec.week + ")"));
-  box.append(el("strong", "Suitable"));
-  const ul = el("ul");
-  rec.exercises.forEach(x => ul.append(el("li", x)));
-  box.append(ul);
-  box.append(el("strong", "Avoid"));
-  const ul2 = el("ul");
-  rec.avoid.forEach(x => ul2.append(el("li", x)));
-  box.append(ul2);
-  if (rec.weekly_minutes !== null) box.append(el("p", "Minutes in the last 7 days: " + rec.weekly_minutes));
-  rec.notes.forEach(n => box.append(el("p", n, "warn")));
-}
-
-function renderRows(items) {
-  const body = $("rows");
-  body.replaceChildren();
-  items.forEach(w => {
-    const tr = el("tr");
-    tr.append(el("td", new Date(w.created).toLocaleDateString()));
-    tr.append(el("td", w.type));
-    tr.append(el("td", String(w.minutes)));
-    tr.append(el("td", String(w.week)));
-    const td = el("td");
-    const b = el("button", "Delete");
-    b.onclick = () => run(async () => {
-      await api("/api/workouts/" + encodeURIComponent(w.id) + "?user=" + encodeURIComponent($("user").value), { method: "DELETE" });
-      await refresh();
-    });
-    td.append(b);
-    tr.append(td);
-    body.append(tr);
-  });
-}
-
-async function refresh() {
-  const q = "user=" + encodeURIComponent($("user").value) + "&week=" + encodeURIComponent($("week").value);
-  const data = await api("/api/overview?" + q);
-  renderRec(data.recommendation);
-  renderRows(data.workouts);
-}
-
-async function run(fn) {
-  $("error").textContent = "";
-  try { await fn(); } catch (e) { $("error").textContent = e.message; }
-}
-
-$("load").onclick = () => run(refresh);
-$("add").onclick = () => run(async () => {
-  await api("/api/workouts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      user: $("user").value, type: $("type").value,
-      minutes: Number($("minutes").value), week: Number($("week").value),
-    }),
-  });
-  await refresh();
-});
-$("erase").onclick = () => run(async () => {
-  if (!confirm("Delete every workout stored for this name?")) return;
-  await api("/api/users/" + encodeURIComponent($("user").value), { method: "DELETE" });
-  await refresh();
-});
-</script>
+<main class="hero">
+  <section class="copy">
+    <p class="kicker">Pregnancy</p>
+    <h1>Fitness tracker</h1>
+    <p class="caption">We help you do the right exercise for your week of pregnancy.</p>
+    <a class="next" href="/app">Next</a>
+    <div class="dots" aria-hidden="true"><a class="on" href="/"></a><a href="/app"></a></div>
+    <p class="note">General information only. This is not medical advice. Ask your midwife or doctor before changing your exercise routine.</p>
+  </section>
+  <section class="art" aria-hidden="true">
+    <svg viewBox="0 0 520 520" xmlns="http://www.w3.org/2000/svg">
+      <path d="M120 60C260 -10 470 40 500 200C530 360 430 500 280 510C130 520 20 420 30 280C40 170 60 100 120 60Z" fill="#fde0e5"/>
+      <path d="M250 405C330 335 470 340 500 420C510 480 430 515 330 510C250 505 190 450 250 405Z" fill="#fad0d9"/>
+      <circle cx="268" cy="250" r="192" fill="none" stroke="#e9a0b0" stroke-width="1.5" stroke-dasharray="6 6"/>
+      <g fill="#f9c3cd" stroke="#f1a1b1" stroke-width="1.5">
+        <g transform="translate(70 430) rotate(-70)"><path d="M0 0C18-34 58-46 90-30C74 4 36 22 0 0Z"/></g>
+        <g transform="translate(95 440) rotate(-35)"><path d="M0 0C18-34 58-46 90-30C74 4 36 22 0 0Z"/></g>
+        <g transform="translate(60 380) rotate(-95)"><path d="M0 0C18-34 58-46 90-30C74 4 36 22 0 0Z"/></g>
+        <g transform="translate(430 150) rotate(-120)"><path d="M0 0C18-34 58-46 90-30C74 4 36 22 0 0Z"/></g>
+        <g transform="translate(445 200) rotate(-150)"><path d="M0 0C18-34 58-46 90-30C74 4 36 22 0 0Z"/></g>
+      </g>
+      <g transform="translate(50 55) scale(0.95)">
+        <rect x="165" y="410" width="15" height="24" fill="#c98b6b"/>
+        <rect x="203" y="410" width="15" height="24" fill="#c98b6b"/>
+        <path d="M150 140C112 150 100 230 128 330C132 270 150 210 168 160Z" fill="#2f2a4a"/>
+        <rect x="178" y="122" width="24" height="30" rx="8" fill="#c98b6b"/>
+        <path d="M168 148C150 190 148 250 158 330L150 412H238L232 330C300 300 292 230 238 215C232 185 226 165 214 148Z" fill="#ef9a86"/>
+        <circle cx="192" cy="92" r="38" fill="#c98b6b"/>
+        <path d="M150 96C146 50 190 44 214 66C200 62 176 66 166 96C162 108 154 108 150 96Z" fill="#2f2a4a"/>
+        <circle cx="152" cy="52" r="22" fill="#2f2a4a"/>
+        <path d="M204 92q6 5 12 0" fill="none" stroke="#2f2a4a" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="210" cy="108" r="7" fill="#ee8d9b" opacity=".7"/>
+        <path d="M192 170C190 215 205 250 258 264" fill="none" stroke="#c98b6b" stroke-width="17" stroke-linecap="round"/>
+        <circle cx="266" cy="268" r="10" fill="#c98b6b"/>
+      </g>
+      <g fill="#ee5f6e">
+        <path transform="translate(420 70)" d="M0 8C-6-4-22 0-16 12C-12 20 0 28 0 28S12 20 16 12C22 0 6-4 0 8Z"/>
+        <path transform="translate(70 120) scale(.7)" d="M0 8C-6-4-22 0-16 12C-12 20 0 28 0 28S12 20 16 12C22 0 6-4 0 8Z"/>
+      </g>
+    </svg>
+  </section>
+</main>
 </body>
 </html>
