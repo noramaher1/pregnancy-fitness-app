@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: web-gateway
-          image: noramaher/pft-gateway:1.2      # replace noramaher with your Docker Hub name
+          image: noramaher/pft-gateway:1.6      # replace noramaher with your Docker Hub name
           ports:
             - containerPort: 8000
           env:

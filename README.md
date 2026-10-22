@@ -1,5 +1,7 @@
 <<<<<<< HEAD
-#Pregnancy Fitness Tracker
+#Pregnancy Fitness APP
+![Welcome page](docs/welcome.png)
+![Tracker page](docs/tracker.png)
 Three Python (FastAPI) microservices and MongoDB, deployable with Docker Compose or Kubernetes.
 
 Component	Role
