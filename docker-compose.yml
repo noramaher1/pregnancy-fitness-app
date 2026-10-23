@@ -22,7 +22,7 @@ services:
 
   recommendation-service:
     build: ./recommendation-service
-    image: ${DOCKERHUB_USER:-youruser}/pft-recommendation:1.0
+    image: ${DOCKERHUB_USER:-youruser}/pft-recommendation:1.3
     environment:
       WORKOUT_URL: http://workout-service:8000
       REDUCE_LOAD_MINUTES: "300"
